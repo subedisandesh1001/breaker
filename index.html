@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Circuit Breaker Monitor</title>
+  <script type="module">
+    // Import Firebase SDK (v9 modular)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+    // Your Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBa1Gb5uDd8-Rjue5VxTE7kOQ9O2n-2xbI",
+      authDomain: "feeders-status-21646.firebaseapp.com",
+      databaseURL: "https://feeders-status-21646-default-rtdb.firebaseio.com/",
+      projectId: "feeders-stat1646",
+      storageBucket: "feeders-status-21646.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // Refs to tags
+    const statusRef = ref(db, "status");
+    const voltageRef = ref(db, "voltage");
+    const currentRef = ref(db, "current");
+
+    // Update HTML in real-time
+    onValue(statusRef, (snapshot) => {
+      document.getElementById("status").innerText = snapshot.val() === 1 ? "ON" : "OFF";
+      document.getElementById("status").style.color = snapshot.val() === 1 ? "green" : "red";
+    });
+
+    onValue(voltageRef, (snapshot) => {
+      document.getElementById("voltage").innerText = snapshot.val() + " V";
+    });
+
+    onValue(currentRef, (snapshot) => {
+      document.getElementById("current").innerText = snapshot.val() + " A";
+    });
+  </script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0b1020;
+      color: #e7ecff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .card {
+      background: rgba(255,255,255,0.08);
+      padding: 20px 30px;
+      border-radius: 16px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      text-align: center;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    .item {
+      margin: 12px 0;
+      font-size: 18px;
+    }
+    .value {
+      font-weight: bold;
+      font-size: 22px;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>⚡ Circuit Breaker Monitor</h2>
+    <div class="item">Status: <span id="status" class="value">Loading...</span></div>
+    <div class="item">Voltage: <span id="voltage" class="value">--</span></div>
+    <div class="item">Current: <span id="current" class="value">--</span></div>
+  </div>
+</body>
+</html>
