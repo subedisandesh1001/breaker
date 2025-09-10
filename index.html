@@ -9,11 +9,12 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
+    // 🔹 Firebase Config
     const firebaseConfig = {
-      apiKey: "AIzaSyBa1Gb5uDd8-Rjue5VxTE7kOQ9O2n-2xbI",
+      apiKey: "AIzaSyBa1Gb5",
       authDomain: "feeders-status-21646.firebaseapp.com",
       databaseURL: "https://feeders-status-21646-default-rtdb.firebaseio.com/",
-      projectId: "feeders-stat1646",
+      projectId: "feeders-status-21646",
       storageBucket: "feeders-status-21646.appspot.com",
       messagingSenderId: "YOUR_SENDER_ID",
       appId: "YOUR_APP_ID"
@@ -22,14 +23,13 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
+    // 🔹 Google Sheets Web App URL
+    const SHEET_URL = "https://script.google.com/macros/s/AKfycbz7h2ZYuitj0vaBCJwxlK6lc8erzIQFTok5L5I15fQbWaURp7WyWwgmkrGkYw-iu4hc/execs"; // paste your web app URL here
+
     const systems = ["33kv system", "Feeder-1", "Feeder-2", "Feeder-3", "Feeder-4"];
     const lastStatus = {};
-    const eventLogs = {}; // store logs for CSV
 
-    systems.forEach(sys => {
-      eventLogs[sys] = [];
-    });
-
+    // 🔹 Update status box
     function updateStatus(name, value) {
       const box = document.getElementById(name.replace(" ", "-"));
       if (!box) return;
@@ -41,80 +41,57 @@
         currentStatus = value === 1 ? "ON" : "OFF";
       }
 
-      // update box display
+      // Update UI
       box.innerText = currentStatus;
       box.className = currentStatus === "ON" || currentStatus === "LIVE" ? "status-box on" : "status-box off";
 
-      // log event if status changed
+      // If status changed → log event
       if (lastStatus[name] !== currentStatus) {
         logEvent(name, currentStatus);
         lastStatus[name] = currentStatus;
       }
     }
 
+    // 🔹 Log Event to Google Sheet
     function logEvent(system, status) {
-      const now = new Date();
-      const log = { time: now.toLocaleString(), system, status };
-      eventLogs[system].push(log);
+      const now = new Date().toLocaleString();
+      const log = { time: now, system, status };
 
-      // update UI
-      updateTable(system);
+      fetch(SHEET_URL, {
+        method: "POST",
+        body: JSON.stringify(log),
+        headers: { "Content-Type": "application/json" }
+      }).then(() => {
+        updateTable(system);
+      });
     }
 
-    function updateTable(system) {
+    // 🔹 Fetch Last 5 Events from Google Sheet
+    async function updateTable(system) {
+      const res = await fetch(SHEET_URL);
+      const data = await res.json();
+
       const tableBody = document.getElementById(system.replace(" ", "-") + "-log");
       tableBody.innerHTML = "";
 
-      const logs = eventLogs[system].slice(-5).reverse(); // last 5 only
-      if (logs.length === 0) {
-        tableBody.innerHTML = "<tr><td colspan='3'>No events yet</td></tr>";
-        return;
-      }
-
-      logs.forEach(log => {
-        const row = document.createElement("tr");
-        row.innerHTML = `<td>${log.time}</td><td>${log.system}</td><td>${log.status}</td>`;
-        tableBody.appendChild(row);
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td>`;
+        tableBody.appendChild(tr);
       });
     }
 
-    function downloadCSV(system) {
-      const logs = eventLogs[system];
-      if (logs.length === 0) {
-        alert("No events recorded for " + system);
-        return;
-      }
-
-      let csv = "Date/Time,System,Status\n";
-      logs.forEach(log => {
-        csv += `${log.time},${log.system},${log.status}\n`;
-      });
-
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = window.URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${system.replace(" ", "_")}_events.csv`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    }
-
-    // Firebase listeners
+    // 🔹 Firebase listeners
     systems.forEach(sys => {
       const sysRef = ref(db, sys);
       onValue(sysRef, (snap) => {
         updateStatus(sys, snap.val());
       });
     });
-
-    // expose download function
-    window.downloadCSV = downloadCSV;
   </script>
 
   <!-- Styles -->
   <style>
-    /* Background gradient animation */
     body {
       font-family: "Segoe UI", Arial, sans-serif;
       margin: 0;
@@ -129,7 +106,6 @@
       50% { background-position: 100% 50%; }
       100% { background-position: 0% 50%; }
     }
-
     h1 {
       text-align: center;
       margin-bottom: 20px;
@@ -137,14 +113,11 @@
       font-weight: 700;
       text-shadow: 0 2px 5px rgba(0,0,0,0.4);
     }
-
     .dashboard {
       display: grid;
       grid-template-rows: auto auto auto;
       grid-gap: 30px;
     }
-
-    /* Glassmorphism cards */
     .card {
       background: rgba(255, 255, 255, 0.15);
       border-radius: 16px;
@@ -153,8 +126,6 @@
       -webkit-backdrop-filter: blur(10px);
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
-
-    /* Status boxes */
     .status-box {
       padding: 18px 36px;
       border-radius: 12px;
@@ -168,8 +139,6 @@
     }
     .on { background: #28a745; }
     .off { background: #dc3545; }
-
-    /* Feeders row */
     .feeders {
       display: flex;
       justify-content: center;
@@ -184,8 +153,6 @@
       margin-bottom: 10px;
       text-align: center;
     }
-
-    /* Event log tables */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -205,33 +172,18 @@
     .log-section {
       margin-top: 20px;
     }
-    .download-btn {
-      margin-top: 8px;
-      padding: 6px 12px;
-      border: none;
-      border-radius: 8px;
-      background: #ffc107;
-      color: #000;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-    .download-btn:hover {
-      background: #ffca2c;
-    }
   </style>
 </head>
 <body>
-  <h1>⚡NEA Batase Substation 33l11 KV</h1>
+  <h1>⚡ NEA Batase Substation 33/11 KV</h1>
 
   <div class="dashboard">
-
     <!-- 33kV System -->
     <div class="card system-card">
       <h2>33KV SYSTEM</h2>
       <div id="33kv-system" class="status-box">--</div>
       <div class="log-section">
-        <h3>Event Log</h3>
+        <h3>Recent 5 Events</h3>
         <table>
           <thead>
             <tr><th>Date/Time</th><th>System</th><th>Status</th></tr>
@@ -240,7 +192,6 @@
             <tr><td colspan="3">No events yet</td></tr>
           </tbody>
         </table>
-        <button class="download-btn" onclick="downloadCSV('33kv system')">Download CSV</button>
       </div>
     </div>
 
@@ -251,62 +202,39 @@
         <div id="Feeder-1" class="status-box">--</div>
         <div class="log-section">
           <table>
-            <thead>
-              <tr><th>Date/Time</th><th>System</th><th>Status</th></tr>
-            </thead>
-            <tbody id="Feeder-1-log">
-              <tr><td colspan="3">No events yet</td></tr>
-            </tbody>
+            <thead><tr><th>Date/Time</th><th>System</th><th>Status</th></tr></thead>
+            <tbody id="Feeder-1-log"><tr><td colspan="3">No events yet</td></tr></tbody>
           </table>
-          <button class="download-btn" onclick="downloadCSV('Feeder-1')">Download CSV</button>
         </div>
       </div>
-
       <div class="card feeder-card">
         <h3>Feeder-2</h3>
         <div id="Feeder-2" class="status-box">--</div>
         <div class="log-section">
           <table>
-            <thead>
-              <tr><th>Date/Time</th><th>System</th><th>Status</th></tr>
-            </thead>
-            <tbody id="Feeder-2-log">
-              <tr><td colspan="3">No events yet</td></tr>
-            </tbody>
+            <thead><tr><th>Date/Time</th><th>System</th><th>Status</th></tr></thead>
+            <tbody id="Feeder-2-log"><tr><td colspan="3">No events yet</td></tr></tbody>
           </table>
-          <button class="download-btn" onclick="downloadCSV('Feeder-2')">Download CSV</button>
         </div>
       </div>
-
       <div class="card feeder-card">
         <h3>Feeder-3</h3>
         <div id="Feeder-3" class="status-box">--</div>
         <div class="log-section">
           <table>
-            <thead>
-              <tr><th>Date/Time</th><th>System</th><th>Status</th></tr>
-            </thead>
-            <tbody id="Feeder-3-log">
-              <tr><td colspan="3">No events yet</td></tr>
-            </tbody>
+            <thead><tr><th>Date/Time</th><th>System</th><th>Status</th></tr></thead>
+            <tbody id="Feeder-3-log"><tr><td colspan="3">No events yet</td></tr></tbody>
           </table>
-          <button class="download-btn" onclick="downloadCSV('Feeder-3')">Download CSV</button>
         </div>
       </div>
-
       <div class="card feeder-card">
         <h3>Feeder-4</h3>
         <div id="Feeder-4" class="status-box">--</div>
         <div class="log-section">
           <table>
-            <thead>
-              <tr><th>Date/Time</th><th>System</th><th>Status</th></tr>
-            </thead>
-            <tbody id="Feeder-4-log">
-              <tr><td colspan="3">No events yet</td></tr>
-            </tbody>
+            <thead><tr><th>Date/Time</th><th>System</th><th>Status</th></tr></thead>
+            <tbody id="Feeder-4-log"><tr><td colspan="3">No events yet</td></tr></tbody>
           </table>
-          <button class="download-btn" onclick="downloadCSV('Feeder-4')">Download CSV</button>
         </div>
       </div>
     </div>
